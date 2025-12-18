@@ -1,0 +1,70 @@
+===========================================
+推送到 GitHub 仓库 MuseAIX9
+===========================================
+
+仓库地址: https://github.com/liutong011025-cloud/MuseAIX9.git
+
+如果 Git 未安装，请先安装：
+1. 下载 Git: https://git-scm.com/download/win
+2. 或使用 GitHub Desktop: https://desktop.github.com/
+
+===========================================
+方法 1: 使用 PowerShell 脚本（推荐）
+===========================================
+
+在项目目录 (C:\Users\liut\Downloads\code) 打开 PowerShell，运行：
+
+.\push-to-github.ps1
+
+===========================================
+方法 2: 手动执行命令
+===========================================
+
+在项目目录打开 PowerShell 或 Git Bash，依次执行：
+
+# 1. 初始化 Git 仓库
+git init
+git branch -M main
+
+# 2. 添加远程仓库
+git remote add origin https://github.com/liutong011025-cloud/MuseAIX9.git
+
+# 3. 添加所有文件（node_modules 会被自动忽略）
+git add .
+
+# 4. 提交更改
+git commit -m "Update: Fix Prisma build issue and Dify API configuration for Vercel deployment"
+
+# 5. 推送到 GitHub
+git push -u origin main
+
+===========================================
+如果推送时要求身份验证
+===========================================
+
+用户名: 你的 GitHub 用户名
+密码: 使用 Personal Access Token (PAT)，不是账户密码
+
+创建 PAT: https://github.com/settings/tokens
+权限需要: repo (全部仓库权限)
+
+===========================================
+如果远程仓库已有内容
+===========================================
+
+先拉取再推送：
+
+git pull origin main --allow-unrelated-histories
+git push -u origin main
+
+===========================================
+本次更新内容
+===========================================
+
+✅ 修复 Prisma 构建问题（添加 postinstall 脚本）
+✅ 修复所有 Dify API 配置（统一使用环境变量）
+✅ 添加编辑页面到 Gallery 的跳转功能
+✅ 添加 Gallery 返回编辑页面的功能
+
+===========================================
+
