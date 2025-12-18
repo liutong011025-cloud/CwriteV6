@@ -207,16 +207,52 @@ Created with CWrite
               </div>
               
               <div className="bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 rounded-xl p-8 border-2 border-amber-200 shadow-inner relative overflow-hidden">
-                <pre 
-                  className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap"
+                <div 
+                  className="text-base text-gray-800 leading-relaxed"
                   style={{ 
                     fontFamily: 'Patrick Hand, Kalam, cursive',
-                    whiteSpace: 'pre-wrap',
-                    wordWrap: 'break-word',
                   }}
                 >
-                  {letter}
-                </pre>
+                  {letter.split('\n').map((line, lineIndex) => {
+                    // 计算当前行之前的所有字符数（包括换行符）
+                    const previousChars = letter.split('\n').slice(0, lineIndex).join('\n').length + lineIndex
+                    const lineLength = line.length
+                    const lineEndDelay = (previousChars + lineLength) * 0.05
+                    const isLastLine = lineIndex === letter.split('\n').length - 1
+                    return (
+                      <div key={lineIndex} className="relative inline-block w-full">
+                        {line.split('').map((char, charIndex) => {
+                          const totalCharIndex = previousChars + charIndex
+                          return (
+                            <span
+                              key={`${lineIndex}-${charIndex}`}
+                              className="animate-handwriting inline-block"
+                              style={{
+                                animationDelay: `${totalCharIndex * 0.05}s`,
+                              }}
+                            >
+                              {char === ' ' ? '\u00A0' : char}
+                            </span>
+                          )
+                        })}
+                        {/* 只在每行末尾（非空行）显示笔的emoji，最后一行持续显示 */}
+                        {line.trim() && (
+                          <span
+                            className={`inline-block text-lg ml-1 pointer-events-none ${
+                              isLastLine ? 'animate-pen-follow' : 'animate-handwriting'
+                            }`}
+                            style={{
+                              animationDelay: `${lineEndDelay}s`,
+                            }}
+                          >
+                            ✏️
+                          </span>
+                        )}
+                        {lineIndex < letter.split('\n').length - 1 && <br />}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           </div>
