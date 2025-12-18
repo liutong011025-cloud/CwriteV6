@@ -24,8 +24,8 @@ export const metadata: Metadata = {
   description: 'Create magical stories with AI assistance',
   generator: 'MuseAI',
   icons: {
-    icon: '/logo.png',
-    apple: '/logo.png',
+    icon: '/logo2.png',
+    apple: '/logo2.png',
   },
 }
 
