@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import StageHeader from "@/components/stage-header"
-import { CheckCircle2, RotateCcw, Mail, ArrowLeft } from "lucide-react"
+import { CheckCircle2, RotateCcw, Mail } from "lucide-react"
 
 interface LetterPuzzleProps {
   sections: string[]
@@ -198,14 +198,6 @@ export default function LetterPuzzle({
                       >
                         <p className="font-medium text-green-900 text-xs line-clamp-2">{sections[dropZones[index]!]}</p>
                       </div>
-                      <button
-                        onClick={() => handleRemoveFromZone(index)}
-                        className="mt-1 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:scale-110 transition-transform"
-                        title="返回"
-                      >
-                        <ArrowLeft className="w-3 h-3" />
-                        <span>返回</span>
-                      </button>
                     </div>
                   )}
                 </div>
