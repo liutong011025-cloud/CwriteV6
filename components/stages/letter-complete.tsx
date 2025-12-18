@@ -216,38 +216,22 @@ Created with CWrite
                   {letter.split('\n').map((line, lineIndex) => {
                     // 计算当前行之前的所有字符数（包括换行符）
                     const previousChars = letter.split('\n').slice(0, lineIndex).join('\n').length + lineIndex
-                    const lineLength = line.length
-                    const lineEndDelay = (previousChars + lineLength) * 0.05
-                    const isLastLine = lineIndex === letter.split('\n').length - 1
                     return (
-                      <div key={lineIndex} className="relative inline-block w-full">
+                      <div key={lineIndex} className="relative">
                         {line.split('').map((char, charIndex) => {
                           const totalCharIndex = previousChars + charIndex
                           return (
                             <span
                               key={`${lineIndex}-${charIndex}`}
-                              className="animate-handwriting inline-block"
+                              className="animate-typewriter inline-block"
                               style={{
-                                animationDelay: `${totalCharIndex * 0.05}s`,
+                                animationDelay: `${totalCharIndex * 0.03}s`,
                               }}
                             >
                               {char === ' ' ? '\u00A0' : char}
                             </span>
                           )
                         })}
-                        {/* 只在每行末尾（非空行）显示笔的emoji，最后一行持续显示 */}
-                        {line.trim() && (
-                          <span
-                            className={`inline-block text-lg ml-1 pointer-events-none ${
-                              isLastLine ? 'animate-pen-follow' : 'animate-handwriting'
-                            }`}
-                            style={{
-                              animationDelay: `${lineEndDelay}s`,
-                            }}
-                          >
-                            ✏️
-                          </span>
-                        )}
                         {lineIndex < letter.split('\n').length - 1 && <br />}
                       </div>
                     )
