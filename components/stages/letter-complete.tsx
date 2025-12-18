@@ -207,25 +207,16 @@ Created with CWrite
               </div>
               
               <div className="bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 rounded-xl p-8 border-2 border-amber-200 shadow-inner relative overflow-hidden">
-                <div 
+                <pre 
                   className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap"
                   style={{ 
                     fontFamily: 'Patrick Hand, Kalam, cursive',
+                    whiteSpace: 'pre-wrap',
+                    wordWrap: 'break-word',
                   }}
                 >
-                  {letter.split('').map((char, index) => (
-                    <span
-                      key={index}
-                      className="animate-handwriting"
-                      style={{
-                        animationDelay: `${index * 0.08}s`,
-                        display: 'inline-block',
-                      }}
-                    >
-                      {char === '\n' ? <br /> : char}
-                    </span>
-                  ))}
-                </div>
+                  {letter}
+                </pre>
               </div>
             </div>
           </div>
