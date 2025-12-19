@@ -238,8 +238,8 @@ export default function StoryEdit({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="font-bold text-sm">
-                          <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 bg-clip-text text-transparent">M</span>
-                          <span className="text-purple-700">use</span>
+                          <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 bg-clip-text text-transparent">C</span>
+                          <span className="text-purple-700">agent</span>
                         </span>
                         {isLoadingSuggestion && (
                           <div className="flex gap-1">
