@@ -374,7 +374,7 @@ export default function GuidedWriting({ language, storyState, onStoryWrite, onBa
                   <div className="bg-white/60 rounded-xl p-5 border-2 border-purple-200">
                     <p className="text-sm text-gray-600 italic leading-relaxed flex items-start gap-2">
                       <span className="text-lg">💡</span>
-                      <span>Start writing the current section and <span className="font-semibold"><span className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 bg-clip-text text-transparent">M</span><span className="text-purple-700">use</span></span> will evaluate your work based on your character, plot, and story structure!</span>
+                      <span>Start writing the current section and <span className="font-semibold"><span className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 bg-clip-text text-transparent">C</span><span className="text-purple-700">agent</span></span> will evaluate your work based on your character, plot, and story structure!</span>
                     </p>
                   </div>
                 )}
