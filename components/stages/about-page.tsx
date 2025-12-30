@@ -80,22 +80,6 @@ const team: Member[] = [
     photo: "/apple.png"
   },
   {
-    name: "Dr LIU, Yiqi April (PhD)",
-    role: "Co-Investigator",
-    titles: [
-      "Assistant Professor"
-    ],
-    interests: [
-      "Classroom discourse",
-      "Language and identity",
-      "Content and Language Integrated Learning",
-      "Translanguaging and trans-semiotizing"
-    ],
-    email: "liuyiqi@eduhk.hk",
-    scholar: "https://scholar.google.com/citations?user=d_x9D8KvDlYC&hl=zh-TW",
-    photo: "/Liu.png"
-  },
-  {
     name: "Mr. LIU, Tong Tony",
     role: "Research Assistant",
     titles: [
@@ -106,7 +90,7 @@ const team: Member[] = [
       "Robotics automation",
       "STEM"
     ],
-    email: "tongliu@eduhk.hk",
+    email: "liut@eduhk.hk",
     photo: "https://museaiwrite.eduhk.hk/wp-content/uploads/2025/10/image-8-683x1024.png"
   }
 ]
