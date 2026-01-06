@@ -80,6 +80,24 @@ const team: Member[] = [
     photo: "/apple.png"
   },
   {
+    name: "Dr. WONG, Ming Har Ruth (PhD)",
+    role: "Co-Investigator",
+    titles: [
+      "Associate Head of Department",
+      "Assistant Professor"
+    ],
+    interests: [
+      "Motivation",
+      "Task-based Learning",
+      "Curriculum",
+      "Language Arts",
+      "Teacher Education"
+    ],
+    email: "wongmh@eduhk.hk",
+    scholar: "https://scholar.google.com.hk/citations?user=LG0U99AAAAAJ&hl=en",
+    photo: "/ruth.png"
+  },
+  {
     name: "Mr. LIU, Tong Tony",
     role: "Research Assistant",
     titles: [
