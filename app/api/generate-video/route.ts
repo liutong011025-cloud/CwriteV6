@@ -3,7 +3,7 @@ import { logApiCall } from '@/lib/log-api-call'
 
 // 直接在代码中配置 FAL Key（不依赖环境变量）
 const FAL_KEY = 'fe7aa0cd-770b-4637-ab05-523a332169b4:dca9c9ff8f073a4c33704236d8942faa'
-const FAL_VIDEO_API_ENDPOINT = 'https://fal.run/fal-ai/flux-schnell' // 使用便宜的快速视频模型
+const FAL_VIDEO_API_ENDPOINT = 'https://fal.run/fal-ai/hunyuan-video-v1.5/text-to-video' // 使用 Hunyuan Video V1.5 模型
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,23 +28,16 @@ export async function POST(request: NextRequest) {
 
     // FAL_KEY 已在代码中硬编码，无需检查
 
-    // 将宽高比转换为 fal.ai 支持的格式
-    let imageSize = 'landscape_16_9' // 默认16:9横向
-    if (aspectRatio === '1:1') {
-      imageSize = 'square_hd'
-    } else if (aspectRatio === '16:9') {
-      imageSize = 'landscape_16_9'
-    } else if (aspectRatio === '9:16') {
-      imageSize = 'portrait_16_9'
-    } else if (aspectRatio === '4:3') {
-      imageSize = 'landscape_4_3'
-    }
+    // Hunyuan Video V1.5 支持的宽高比：16:9 或 9:16
+    const hunyuanAspectRatio = aspectRatio === '9:16' ? '9:16' : '16:9'
 
     const requestBody = {
       prompt: prompt.trim(),
-      image_size: imageSize,
-      num_frames: 25, // 约1秒视频
-      num_inference_steps: 6, // 快速模式，降低成本
+      aspect_ratio: hunyuanAspectRatio, // 16:9 或 9:16
+      resolution: '480p', // 默认分辨率
+      num_frames: 121, // 默认帧数（约4秒视频，可减少以降低成本）
+      num_inference_steps: 28, // 默认推理步数
+      enable_prompt_expansion: true, // 启用提示词扩展
     }
 
     console.log('Sending request to fal.ai for video generation:')
@@ -56,6 +49,11 @@ export async function POST(request: NextRequest) {
     const timeoutId = setTimeout(() => controller.abort(), 300000) // 300秒超时（5分钟）
 
     try {
+      console.log('=== Starting Hunyuan Video Generation ===')
+      console.log('Endpoint:', FAL_VIDEO_API_ENDPOINT)
+      console.log('Request body:', JSON.stringify(requestBody, null, 2))
+      console.log('FAL_KEY configured:', !!FAL_KEY)
+      
       const response = await fetch(FAL_VIDEO_API_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -68,9 +66,13 @@ export async function POST(request: NextRequest) {
 
       clearTimeout(timeoutId)
 
+      console.log('Response status:', response.status, response.statusText)
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+
       if (!response.ok) {
         const errorData = await response.text()
         console.error('Fal.ai API error:', response.status, errorData)
+        console.error('Full error response:', errorData)
         return NextResponse.json(
           { error: `Failed to generate video (${response.status}): ${errorData}` },
           { status: response.status }
@@ -79,9 +81,10 @@ export async function POST(request: NextRequest) {
 
       const result = await response.json()
       console.log('Fal.ai video response:', JSON.stringify(result, null, 2))
+      console.log('Video URL extracted:', result.video?.url)
       
-      // 提取视频URL - flux-schnell 返回格式可能是 { video: { url: ... } } 或 { video_url: ... } 或 { url: ... }
-      const videoUrl = result.video?.url || result.video_url || result.url || null
+      // Hunyuan Video V1.5 返回格式：{ video: { url: "..." }, seed: ... }
+      const videoUrl = result.video?.url || null
       
       if (!videoUrl) {
         console.error('No video URL in response:', JSON.stringify(result, null, 2))
@@ -95,9 +98,9 @@ export async function POST(request: NextRequest) {
       await logApiCall(
         userId,
         stage,
-        '/api/generate-video (Fal.ai flux-schnell)',
-        { prompt, aspect_ratio: aspectRatio },
-        { videoUrl, description: result.description }
+        '/api/generate-video (Fal.ai hunyuan-video-v1.5)',
+        { prompt, aspect_ratio: hunyuanAspectRatio },
+        { videoUrl, seed: result.seed }
       )
       
       return NextResponse.json({ 
