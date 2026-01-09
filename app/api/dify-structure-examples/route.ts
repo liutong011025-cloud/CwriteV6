@@ -7,7 +7,7 @@ const DIFY_BASE_URL = 'https://api.dify.ai/v1'
 // 直接在代码中配置 FAL Key（不依赖环境变量）
 const FAL_KEY = 'fe7aa0cd-770b-4637-ab05-523a332169b4:dca9c9ff8f073a4c33704236d8942faa'
 const FAL_IMAGE_API_ENDPOINT = 'https://fal.run/fal-ai/nano-banana'
-const FAL_VIDEO_API_ENDPOINT = 'https://fal.run/fal-ai/flux-schnell'
+const FAL_VIDEO_API_ENDPOINT = 'https://fal.run/fal-ai/hunyuan-video-v1.5/text-to-video'
 
 export async function POST(request: NextRequest) {
   try {
@@ -276,32 +276,47 @@ ${plotInfo}
       console.log('Video prompt:', videoPrompt)
       
       // FAL_KEY 已在代码中硬编码，直接使用
-      // 使用 flux-schnell 模型生成视频（便宜快速）
+      // 使用 Hunyuan Video V1.5 模型生成视频
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 300000) // 300秒超时（视频生成需要更长时间）
       
       try {
+        console.log('=== Starting Hunyuan Video Generation (dify-structure-examples) ===')
+        console.log('Endpoint:', FAL_VIDEO_API_ENDPOINT)
+        console.log('Video prompt:', videoPrompt)
+        console.log('FAL_KEY configured:', !!FAL_KEY)
+        
+        const requestBody = {
+          prompt: videoPrompt,
+          aspect_ratio: "16:9", // Hunyuan 支持 16:9 或 9:16
+          resolution: "480p", // 默认分辨率
+          num_frames: 121, // 默认帧数（约4秒视频）
+          num_inference_steps: 28, // 默认推理步数
+          enable_prompt_expansion: true, // 启用提示词扩展
+        }
+        
+        console.log('Request body:', JSON.stringify(requestBody, null, 2))
+        
         const videoResponse = await fetch(FAL_VIDEO_API_ENDPOINT, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Key ${FAL_KEY}`,
           },
-          body: JSON.stringify({
-            prompt: videoPrompt,
-            image_size: "landscape_16_9", // 16:9横向比例
-            num_frames: 25, // 约1秒视频
-            num_inference_steps: 6, // 快速模式
-          }),
+          body: JSON.stringify(requestBody),
           signal: controller.signal,
         })
 
         clearTimeout(timeoutId)
 
+        console.log('Response status:', videoResponse.status, videoResponse.statusText)
+
         if (videoResponse.ok) {
           const videoData = await videoResponse.json()
-          // flux-schnell 返回格式可能是 { video: { url: ... } } 或 { video_url: ... }
-          videoUrl = videoData.video?.url || videoData.video_url || videoData.url || ''
+          console.log('Video response data:', JSON.stringify(videoData, null, 2))
+          // Hunyuan Video V1.5 返回格式：{ video: { url: "..." }, seed: ... }
+          videoUrl = videoData.video?.url || ''
+          console.log('Extracted video URL:', videoUrl)
           if (!videoUrl) {
             console.warn('No video URL in response, using placeholder')
             videoUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${character?.name || 'story'}`
@@ -309,6 +324,7 @@ ${plotInfo}
         } else {
           const errorText = await videoResponse.text()
           console.error('Fal.ai video generation failed:', videoResponse.status, errorText)
+          console.error('Full error response:', errorText)
           // 如果API调用失败，使用占位符
           videoUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${character?.name || 'story'}`
         }
