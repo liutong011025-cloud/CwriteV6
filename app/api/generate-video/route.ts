@@ -44,15 +44,17 @@ export async function POST(request: NextRequest) {
     console.log('Endpoint:', FAL_VIDEO_API_ENDPOINT)
     console.log('Request body:', JSON.stringify(requestBody, null, 2))
 
-    // 使用 fal.ai API 生成视频，增加超时时间（视频生成需要更长时间）
+    // 使用 fal.ai API 生成视频
+    // 注意：Hunyuan Video 可能需要较长时间，使用较长的超时时间
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 300000) // 300秒超时（5分钟）
+    const timeoutId = setTimeout(() => controller.abort(), 600000) // 600秒超时（10分钟）
 
     try {
       console.log('=== Starting Hunyuan Video Generation ===')
       console.log('Endpoint:', FAL_VIDEO_API_ENDPOINT)
       console.log('Request body:', JSON.stringify(requestBody, null, 2))
       console.log('FAL_KEY configured:', !!FAL_KEY)
+      console.log('FAL_KEY (first 20 chars):', FAL_KEY.substring(0, 20) + '...')
       
       const response = await fetch(FAL_VIDEO_API_ENDPOINT, {
         method: 'POST',
@@ -67,27 +69,40 @@ export async function POST(request: NextRequest) {
       clearTimeout(timeoutId)
 
       console.log('Response status:', response.status, response.statusText)
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+      console.log('Response ok:', response.ok)
+      
+      const responseText = await response.text()
+      console.log('Response text (first 500 chars):', responseText.substring(0, 500))
 
       if (!response.ok) {
-        const errorData = await response.text()
-        console.error('Fal.ai API error:', response.status, errorData)
-        console.error('Full error response:', errorData)
+        console.error('Fal.ai API error:', response.status)
+        console.error('Full error response:', responseText)
         return NextResponse.json(
-          { error: `Failed to generate video (${response.status}): ${errorData}` },
+          { error: `Failed to generate video (${response.status}): ${responseText.substring(0, 200)}` },
           { status: response.status }
         )
       }
 
-      const result = await response.json()
+      let result
+      try {
+        result = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('Failed to parse JSON response:', parseError)
+        console.error('Response text:', responseText)
+        return NextResponse.json(
+          { error: 'Invalid JSON response from fal.ai' },
+          { status: 500 }
+        )
+      }
+
       console.log('Fal.ai video response:', JSON.stringify(result, null, 2))
-      console.log('Video URL extracted:', result.video?.url)
       
       // Hunyuan Video V1.5 返回格式：{ video: { url: "..." }, seed: ... }
-      const videoUrl = result.video?.url || null
+      const videoUrl = result.video?.url || result.video_url || result.url || null
+      console.log('Video URL extracted:', videoUrl)
       
       if (!videoUrl) {
-        console.error('No video URL in response:', JSON.stringify(result, null, 2))
+        console.error('No video URL in response. Full response:', JSON.stringify(result, null, 2))
         return NextResponse.json(
           { error: 'Failed to get video URL from response. Response: ' + JSON.stringify(result) },
           { status: 500 }
@@ -103,6 +118,8 @@ export async function POST(request: NextRequest) {
         { videoUrl, seed: result.seed }
       )
       
+      console.log('Video generation successful! URL:', videoUrl)
+      
       return NextResponse.json({ 
         videoUrl,
         imageUrl: videoUrl, // 保持向后兼容，返回imageUrl字段
@@ -111,12 +128,19 @@ export async function POST(request: NextRequest) {
     } catch (fetchError: any) {
       clearTimeout(timeoutId)
       if (fetchError.name === 'AbortError') {
+        console.error('Request timeout')
         return NextResponse.json(
           { error: 'Video generation timeout. Please try again.' },
           { status: 504 }
         )
       }
-      throw fetchError
+      console.error('Fetch error:', fetchError)
+      console.error('Error message:', fetchError.message)
+      console.error('Error stack:', fetchError.stack)
+      return NextResponse.json(
+        { error: `Video generation error: ${fetchError.message}` },
+        { status: 500 }
+      )
     }
 
   } catch (error) {
