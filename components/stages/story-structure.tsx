@@ -154,6 +154,9 @@ export default function StoryStructure({ language, plot, character, onStructureS
             : 'a character'
           const videoPrompt = `A charming illustration for a children's story: ${speciesInfo} named ${character?.name || 'a character'} in ${plot?.setting || 'a setting'}, ${plot?.conflict || 'facing a challenge'}. Colorful, friendly, and suitable for children.`
           
+          console.log(`Generating video for ${type} structure...`)
+          console.log('Video prompt:', videoPrompt)
+          
           const videoResponse = await fetch("/api/generate-video", {
             method: "POST",
             headers: {
@@ -167,13 +170,23 @@ export default function StoryStructure({ language, plot, character, onStructureS
             }),
           })
 
+          console.log(`Video response status for ${type}:`, videoResponse.status)
+
           if (videoResponse.ok) {
             const videoData = await videoResponse.json()
+            console.log(`Video data for ${type}:`, videoData)
             videoUrl = videoData.videoUrl || videoData.imageUrl || ''
             imageUrl = videoUrl // 保持向后兼容
+            console.log(`Video URL for ${type}:`, videoUrl)
+          } else {
+            const errorData = await videoResponse.json().catch(() => ({ error: 'Unknown error' }))
+            console.error(`Video generation failed for ${type}:`, errorData)
+            toast.error(`Video generation failed for ${type}: ${errorData.error || 'Unknown error'}`)
           }
-        } catch (videoError) {
-          console.error('Error generating video:', videoError)
+        } catch (videoError: any) {
+          console.error(`Error generating video for ${type}:`, videoError)
+          console.error('Error message:', videoError.message)
+          toast.error(`Video generation error: ${videoError.message || 'Unknown error'}`)
         }
 
         // 如果没有视频，使用占位符
