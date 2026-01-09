@@ -134,77 +134,178 @@ export default function StoryStructure({ language, plot, character, onStructureS
       // 解析返回的三个故事
       const generatedExamples: StoryExample[] = []
       
-      // 为每个结构生成图片并组合结果
+      // 为每个结构并行生成视频
       const structuresToProcess = [
         { type: 'freytag', storyData: data.freytag },
         { type: 'threeAct', storyData: data.threeAct },
         { type: 'fichtean', storyData: data.fichtean },
       ]
 
-      for (const { type, storyData } of structuresToProcess) {
-        // 生成视频（替换原来的图片生成）
+      // 构建视频提示词（三个结构使用相同的提示词）
+      const speciesInfo = character?.species 
+        ? (character.species === "Boy" || character.species === "Girl" 
+          ? `a young ${character.species.toLowerCase()}` 
+          : `a ${character.species.toLowerCase()}`)
+        : 'a character'
+      const videoPrompt = `A charming illustration for a children's story: ${speciesInfo} named ${character?.name || 'a character'} in ${plot?.setting || 'a setting'}, ${plot?.conflict || 'facing a challenge'}. Colorful, friendly, and suitable for children.`
+
+      console.log('Generating videos for all structures in parallel...')
+      console.log('Video prompt:', videoPrompt)
+
+      // 并行发送三个视频生成请求
+      // 使用 Promise.allSettled 确保即使一个失败，其他也能继续
+      const videoPromises = structuresToProcess.map(async ({ type, storyData }) => {
         let videoUrl = ''
-        let imageUrl = '' // 保持向后兼容
+        let imageUrl = ''
+        
+        console.log(`Generating video for ${type} structure...`)
+        console.log(`[${type}] Starting video generation...`)
+        console.log(`[${type}] Story data exists:`, !!storyData)
+        console.log(`[${type}] Story data:`, storyData ? 'exists' : 'missing')
+        
         try {
-          // 构建视频提示词，包含物种信息
-          const speciesInfo = character?.species 
-            ? (character.species === "Boy" || character.species === "Girl" 
-              ? `a young ${character.species.toLowerCase()}` 
-              : `a ${character.species.toLowerCase()}`)
-            : 'a character'
-          const videoPrompt = `A charming illustration for a children's story: ${speciesInfo} named ${character?.name || 'a character'} in ${plot?.setting || 'a setting'}, ${plot?.conflict || 'facing a challenge'}. Colorful, friendly, and suitable for children.`
+          const requestBody = {
+            prompt: videoPrompt,
+            aspect_ratio: "16:9",
+            user_id: userId,
+            stage: 'structure'
+          }
           
-          console.log(`Generating video for ${type} structure...`)
-          console.log('Video prompt:', videoPrompt)
+          console.log(`[${type}] Sending request to /api/generate-video`)
+          console.log(`[${type}] Request body:`, JSON.stringify(requestBody, null, 2))
           
           const videoResponse = await fetch("/api/generate-video", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ 
-              prompt: videoPrompt,
-              aspect_ratio: "16:9",
-              user_id: userId,
-              stage: 'structure'
-            }),
+            body: JSON.stringify(requestBody),
           })
 
           console.log(`Video response status for ${type}:`, videoResponse.status)
+          console.log(`[${type}] Video response status:`, videoResponse.status, videoResponse.statusText)
+          console.log(`[${type}] Response ok:`, videoResponse.ok)
 
           if (videoResponse.ok) {
             const videoData = await videoResponse.json()
             console.log(`Video data for ${type}:`, videoData)
+            console.log(`[${type}] Video data:`, JSON.stringify(videoData, null, 2))
             videoUrl = videoData.videoUrl || videoData.imageUrl || ''
-            imageUrl = videoUrl // 保持向后兼容
+            imageUrl = videoUrl
             console.log(`Video URL for ${type}:`, videoUrl)
+            console.log(`[${type}] Video URL extracted:`, videoUrl)
+            console.log(`[${type}] Video URL length:`, videoUrl?.length)
+            console.log(`[${type}] Video URL is valid:`, !!videoUrl && videoUrl.length > 0 && !videoUrl.includes('dicebear'))
           } else {
-            const errorData = await videoResponse.json().catch(() => ({ error: 'Unknown error' }))
-            console.error(`Video generation failed for ${type}:`, errorData)
-            toast.error(`Video generation failed for ${type}: ${errorData.error || 'Unknown error'}`)
+            const errorText = await videoResponse.text()
+            console.error(`[${type}] Video generation failed:`, videoResponse.status)
+            console.error(`[${type}] Error response:`, errorText)
+            try {
+              const errorData = JSON.parse(errorText)
+              console.error(`[${type}] Parsed error:`, errorData)
+            } catch (e) {
+              console.error(`[${type}] Error text:`, errorText)
+            }
           }
         } catch (videoError: any) {
+          console.error(`[${type}] Exception during video generation:`, videoError)
+          console.error(`[${type}] Error message:`, videoError.message)
+          console.error(`[${type}] Error stack:`, videoError.stack)
           console.error(`Error generating video for ${type}:`, videoError)
-          console.error('Error message:', videoError.message)
-          toast.error(`Video generation error: ${videoError.message || 'Unknown error'}`)
         }
 
         // 如果没有视频，使用占位符
-        if (!videoUrl) {
+        if (!videoUrl || videoUrl.includes('dicebear')) {
+          console.warn(`[${type}] No valid video URL, using placeholder`)
           videoUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${type}`
           imageUrl = videoUrl
         }
 
-        generatedExamples.push({
+        const result = {
           structure_type: type,
           story: storyData?.story || "Example story",
           imageUrl: imageUrl,
           videoUrl: videoUrl,
+        }
+        
+        console.log(`[${type}] Final result:`, {
+          structure_type: result.structure_type,
+          hasVideo: !!result.videoUrl && !result.videoUrl.includes('dicebear'),
+          videoUrlLength: result.videoUrl?.length,
+          videoUrl: result.videoUrl?.substring(0, 50)
         })
+        
+        return result
+      })
+
+      // 等待所有视频生成完成
+      // 使用 Promise.allSettled 确保即使一个失败，其他也能继续
+      const videoResults = await Promise.allSettled(videoPromises)
+      
+      videoResults.forEach((result, index) => {
+        const structure = structuresToProcess[index]
+        if (result.status === 'fulfilled') {
+          console.log(`[${structure.type}] Video generation completed successfully`)
+          generatedExamples.push(result.value)
+        } else {
+          console.error(`[${structure.type}] Video generation failed:`, result.reason)
+          // 即使失败，也添加一个占位符结果
+          const fallbackResult = {
+            structure_type: structure.type,
+            story: structure.storyData?.story || "Example story",
+            imageUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${structure.type}`,
+            videoUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${structure.type}`,
+          }
+          generatedExamples.push(fallbackResult)
+        }
+      })
+      
+      console.log('=== All videos generated ===')
+      generatedExamples.forEach((example, index) => {
+        console.log(`Result ${index + 1}:`, {
+          type: example.structure_type,
+          hasVideo: !!example.videoUrl && !example.videoUrl.includes('dicebear'),
+          videoUrl: example.videoUrl?.substring(0, 100) + '...',
+          storyLength: example.story?.length
+        })
+      })
+      
+      // 检查每个结构的视频状态
+      const videoStatus = {
+        freytag: generatedExamples.find(e => e.structure_type === 'freytag'),
+        threeAct: generatedExamples.find(e => e.structure_type === 'threeAct'),
+        fichtean: generatedExamples.find(e => e.structure_type === 'fichtean'),
       }
+      
+      console.log('Video status check:', {
+        freytag: {
+          exists: !!videoStatus.freytag,
+          hasVideo: !!videoStatus.freytag?.videoUrl && !videoStatus.freytag.videoUrl.includes('dicebear'),
+          videoUrl: videoStatus.freytag?.videoUrl?.substring(0, 50)
+        },
+        threeAct: {
+          exists: !!videoStatus.threeAct,
+          hasVideo: !!videoStatus.threeAct?.videoUrl && !videoStatus.threeAct.videoUrl.includes('dicebear'),
+          videoUrl: videoStatus.threeAct?.videoUrl?.substring(0, 50)
+        },
+        fichtean: {
+          exists: !!videoStatus.fichtean,
+          hasVideo: !!videoStatus.fichtean?.videoUrl && !videoStatus.fichtean.videoUrl.includes('dicebear'),
+          videoUrl: videoStatus.fichtean?.videoUrl?.substring(0, 50)
+        }
+      })
 
       setExamples(generatedExamples)
-      toast.success("Example stories generated!")
+      
+      // 检查是否有视频生成成功
+      const hasVideos = generatedExamples.some(e => e.videoUrl && !e.videoUrl.includes('dicebear'))
+      if (hasVideos) {
+        toast.success("Example stories and videos generated!")
+        // 自动翻页到第一个结构
+        setCurrentPage(0)
+      } else {
+        toast.success("Example stories generated!")
+      }
     } catch (error) {
       console.error("Error generating examples:", error)
       toast.error("Failed to generate examples")
@@ -437,6 +538,14 @@ export default function StoryStructure({ language, plot, character, onStructureS
                   {/* 视频显示在下方 - 更大，带边框和填充 */}
                   {example && (example.videoUrl || example.imageUrl) && (
                     <div className="mt-8 relative">
+                      {/* 调试信息（开发时可见） */}
+                      {typeof window !== 'undefined' && window.location.hostname === 'localhost' && (
+                        <div className="mb-2 text-xs text-gray-500">
+                          Debug: {example.structure_type} - Video URL: {example.videoUrl?.substring(0, 50)}...
+                          {example.videoUrl?.includes('dicebear') && ' (Placeholder)'}
+                        </div>
+                      )}
+                      
                       {/* 装饰性边框背景 */}
                       <div className="absolute -inset-4 bg-gradient-to-r from-purple-200 via-pink-200 to-orange-200 rounded-2xl blur-xl opacity-30"></div>
                       <div className="absolute -inset-2 bg-gradient-to-br from-purple-100 via-pink-100 to-orange-100 rounded-xl"></div>
@@ -444,17 +553,34 @@ export default function StoryStructure({ language, plot, character, onStructureS
                       {/* 视频容器 */}
                       <div className="relative bg-gradient-to-br from-white via-purple-50 to-pink-50 rounded-xl p-6 border-4 border-purple-300 shadow-2xl transform hover:scale-[1.02] transition-all duration-300">
                         <div className="relative bg-white rounded-lg overflow-hidden">
-                          <video
-                            src={example.videoUrl || example.imageUrl}
-                            controls
-                            autoPlay
-                            loop
-                            muted
-                            playsInline
-                            className="w-full h-auto max-h-[500px] min-h-[400px] object-contain"
-                          >
-                            您的浏览器不支持视频播放
-                          </video>
+                          {example.videoUrl && !example.videoUrl.includes('dicebear') ? (
+                            <video
+                              key={example.videoUrl} // 添加key确保视频重新加载
+                              src={example.videoUrl}
+                              controls
+                              autoPlay
+                              loop
+                              muted
+                              playsInline
+                              onError={(e) => {
+                                console.error(`[${example.structure_type}] Video load error:`, e)
+                                console.error(`[${example.structure_type}] Video URL:`, example.videoUrl)
+                              }}
+                              onLoadStart={() => {
+                                console.log(`[${example.structure_type}] Video loading started`)
+                              }}
+                              onLoadedData={() => {
+                                console.log(`[${example.structure_type}] Video loaded successfully`)
+                              }}
+                              className="w-full h-auto max-h-[500px] min-h-[400px] object-contain"
+                            >
+                              您的浏览器不支持视频播放
+                            </video>
+                          ) : (
+                            <div className="w-full h-[400px] flex items-center justify-center bg-gray-100 rounded-lg">
+                              <p className="text-gray-500">视频生成中或加载失败</p>
+                            </div>
+                          )}
                         </div>
                         
                         {/* 装饰性角标 */}
