@@ -141,16 +141,18 @@ export default function StoryStructure({ language, plot, character, onStructureS
         { type: 'fichtean', storyData: data.fichtean },
       ]
 
-      // 构建视频提示词（三个结构使用相同的提示词）
+      // 构建视频提示词（为每个结构添加不同的描述，避免完全相同）
       const speciesInfo = character?.species 
         ? (character.species === "Boy" || character.species === "Girl" 
           ? `a young ${character.species.toLowerCase()}` 
           : `a ${character.species.toLowerCase()}`)
         : 'a character'
-      const videoPrompt = `A charming illustration for a children's story: ${speciesInfo} named ${character?.name || 'a character'} in ${plot?.setting || 'a setting'}, ${plot?.conflict || 'facing a challenge'}. Colorful, friendly, and suitable for children.`
+      
+      // 为每个结构创建不同的提示词，避免fal.ai缓存或重复
+      const basePrompt = `A charming illustration for a children's story: ${speciesInfo} named ${character?.name || 'a character'} in ${plot?.setting || 'a setting'}, ${plot?.conflict || 'facing a challenge'}. Colorful, friendly, and suitable for children.`
 
       console.log('Generating videos for all structures in parallel...')
-      console.log('Video prompt:', videoPrompt)
+      console.log('Base prompt:', basePrompt)
 
       // 并行发送三个视频生成请求
       // 使用 Promise.allSettled 确保即使一个失败，其他也能继续
@@ -158,10 +160,20 @@ export default function StoryStructure({ language, plot, character, onStructureS
         let videoUrl = ''
         let imageUrl = ''
         
+        // 为每个结构创建独特的提示词，添加结构类型标识
+        const structureNames: Record<string, string> = {
+          'freytag': "Freytag's Pyramid",
+          'threeAct': "Three Act Structure",
+          'fichtean': "Fichtean Curve"
+        }
+        const structureName = structureNames[type] || type
+        const videoPrompt = `${basePrompt} Story structure: ${structureName}.`
+        
         console.log(`Generating video for ${type} structure...`)
         console.log(`[${type}] Starting video generation...`)
         console.log(`[${type}] Story data exists:`, !!storyData)
         console.log(`[${type}] Story data:`, storyData ? 'exists' : 'missing')
+        console.log(`[${type}] Video prompt:`, videoPrompt)
         
         try {
           const requestBody = {
@@ -190,12 +202,22 @@ export default function StoryStructure({ language, plot, character, onStructureS
             const videoData = await videoResponse.json()
             console.log(`Video data for ${type}:`, videoData)
             console.log(`[${type}] Video data:`, JSON.stringify(videoData, null, 2))
-            videoUrl = videoData.videoUrl || videoData.imageUrl || ''
+            
+            // 尝试多种可能的响应格式
+            videoUrl = videoData.videoUrl || videoData.imageUrl || videoData.video?.url || videoData.video_url || ''
             imageUrl = videoUrl
+            
             console.log(`Video URL for ${type}:`, videoUrl)
             console.log(`[${type}] Video URL extracted:`, videoUrl)
             console.log(`[${type}] Video URL length:`, videoUrl?.length)
             console.log(`[${type}] Video URL is valid:`, !!videoUrl && videoUrl.length > 0 && !videoUrl.includes('dicebear'))
+            
+            // 如果仍然没有URL，记录详细信息
+            if (!videoUrl) {
+              console.error(`[${type}] No video URL found in response!`)
+              console.error(`[${type}] Full response keys:`, Object.keys(videoData))
+              console.error(`[${type}] Full response:`, JSON.stringify(videoData, null, 2))
+            }
           } else {
             const errorText = await videoResponse.text()
             console.error(`[${type}] Video generation failed:`, videoResponse.status)
