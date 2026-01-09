@@ -20,6 +20,7 @@ interface StoryExample {
   structure_type: string
   story: string
   imageUrl: string
+  videoUrl?: string // 新增视频URL字段
 }
 
 const STRUCTURES = [
@@ -141,47 +142,51 @@ export default function StoryStructure({ language, plot, character, onStructureS
       ]
 
       for (const { type, storyData } of structuresToProcess) {
-        // 生成图片（使用现有的图片生成逻辑）
-        let imageUrl = ''
+        // 生成视频（替换原来的图片生成）
+        let videoUrl = ''
+        let imageUrl = '' // 保持向后兼容
         try {
-          // 构建图片提示词，包含物种信息
+          // 构建视频提示词，包含物种信息
           const speciesInfo = character?.species 
             ? (character.species === "Boy" || character.species === "Girl" 
               ? `a young ${character.species.toLowerCase()}` 
               : `a ${character.species.toLowerCase()}`)
             : 'a character'
-          const imagePrompt = `A charming illustration for a children's story: ${speciesInfo} named ${character?.name || 'a character'} in ${plot?.setting || 'a setting'}, ${plot?.conflict || 'facing a challenge'}. Colorful, friendly, and suitable for children.`
+          const videoPrompt = `A charming illustration for a children's story: ${speciesInfo} named ${character?.name || 'a character'} in ${plot?.setting || 'a setting'}, ${plot?.conflict || 'facing a challenge'}. Colorful, friendly, and suitable for children.`
           
-          const imageResponse = await fetch("/api/generate-image", {
+          const videoResponse = await fetch("/api/generate-video", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({ 
-              prompt: imagePrompt,
+              prompt: videoPrompt,
               aspect_ratio: "16:9",
               user_id: userId,
               stage: 'structure'
             }),
           })
 
-          if (imageResponse.ok) {
-            const imageData = await imageResponse.json()
-            imageUrl = imageData.imageUrl || ''
+          if (videoResponse.ok) {
+            const videoData = await videoResponse.json()
+            videoUrl = videoData.videoUrl || videoData.imageUrl || ''
+            imageUrl = videoUrl // 保持向后兼容
           }
-        } catch (imageError) {
-          console.error('Error generating image:', imageError)
+        } catch (videoError) {
+          console.error('Error generating video:', videoError)
         }
 
-        // 如果没有图片，使用占位符
-        if (!imageUrl) {
-          imageUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${type}`
+        // 如果没有视频，使用占位符
+        if (!videoUrl) {
+          videoUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${type}`
+          imageUrl = videoUrl
         }
 
         generatedExamples.push({
           structure_type: type,
           story: storyData?.story || "Example story",
           imageUrl: imageUrl,
+          videoUrl: videoUrl,
         })
       }
 
@@ -207,15 +212,16 @@ export default function StoryStructure({ language, plot, character, onStructureS
     const structure = STRUCTURES.find((s) => s.type === structureType)
     if (structure) {
       setCurrentAction(`Selected structure: ${structure.name}`)
-      // 保存当前选中结构的图片
+      // 保存当前选中结构的视频/图片（优先使用视频）
       const example = examples.find((e) => e.structure_type === structureType)
-      if (example?.imageUrl) {
-        setSelectedStructureImage(example.imageUrl)
+      const mediaUrl = example?.videoUrl || example?.imageUrl || ""
+      if (mediaUrl) {
+        setSelectedStructureImage(mediaUrl)
       }
       onStructureSelect({
         type: structure.type as any,
         outline: structure.outline,
-        imageUrl: example?.imageUrl || "",
+        imageUrl: mediaUrl, // 保持向后兼容，传递 videoUrl 或 imageUrl
       })
     }
   }
@@ -415,33 +421,39 @@ export default function StoryStructure({ language, plot, character, onStructureS
                                     )}
                                   </div>
                                   
-                                  {/* 图片显示在下方 - 更大，带边框和填充 */}
-                                  {example && example.imageUrl && (
-                                    <div className="mt-8 relative">
-                                      {/* 装饰性边框背景 */}
-                                      <div className="absolute -inset-4 bg-gradient-to-r from-purple-200 via-pink-200 to-orange-200 rounded-2xl blur-xl opacity-30"></div>
-                                      <div className="absolute -inset-2 bg-gradient-to-br from-purple-100 via-pink-100 to-orange-100 rounded-xl"></div>
-                                      
-                                      {/* 图片容器 */}
-                                      <div className="relative bg-gradient-to-br from-white via-purple-50 to-pink-50 rounded-xl p-6 border-4 border-purple-300 shadow-2xl transform hover:scale-[1.02] transition-all duration-300">
-                                        <div className="relative bg-white rounded-lg overflow-hidden">
-                                          <img
-                                            src={example.imageUrl}
-                                            alt={`Example for ${structure.name}`}
-                                            className="w-full h-auto max-h-[500px] min-h-[400px] object-contain"
-                                          />
-                                        </div>
-                                        
-                                        {/* 装饰性角标 */}
-                                        <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center shadow-lg">
-                                          <span className="text-white text-sm">✨</span>
-                                        </div>
-                                        <div className="absolute -bottom-2 -left-2 w-8 h-8 bg-gradient-to-br from-orange-400 to-red-400 rounded-full flex items-center justify-center shadow-lg">
-                                          <span className="text-white text-sm">🌟</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
+                  {/* 视频显示在下方 - 更大，带边框和填充 */}
+                  {example && (example.videoUrl || example.imageUrl) && (
+                    <div className="mt-8 relative">
+                      {/* 装饰性边框背景 */}
+                      <div className="absolute -inset-4 bg-gradient-to-r from-purple-200 via-pink-200 to-orange-200 rounded-2xl blur-xl opacity-30"></div>
+                      <div className="absolute -inset-2 bg-gradient-to-br from-purple-100 via-pink-100 to-orange-100 rounded-xl"></div>
+                      
+                      {/* 视频容器 */}
+                      <div className="relative bg-gradient-to-br from-white via-purple-50 to-pink-50 rounded-xl p-6 border-4 border-purple-300 shadow-2xl transform hover:scale-[1.02] transition-all duration-300">
+                        <div className="relative bg-white rounded-lg overflow-hidden">
+                          <video
+                            src={example.videoUrl || example.imageUrl}
+                            controls
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="w-full h-auto max-h-[500px] min-h-[400px] object-contain"
+                          >
+                            您的浏览器不支持视频播放
+                          </video>
+                        </div>
+                        
+                        {/* 装饰性角标 */}
+                        <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center shadow-lg">
+                          <span className="text-white text-sm">✨</span>
+                        </div>
+                        <div className="absolute -bottom-2 -left-2 w-8 h-8 bg-gradient-to-br from-orange-400 to-red-400 rounded-full flex items-center justify-center shadow-lg">
+                          <span className="text-white text-sm">🌟</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                                 </div>
                               </div>
                             </div>
