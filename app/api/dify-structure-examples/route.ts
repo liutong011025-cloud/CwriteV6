@@ -7,7 +7,6 @@ const DIFY_BASE_URL = 'https://api.dify.ai/v1'
 // 直接在代码中配置 FAL Key（不依赖环境变量）
 const FAL_KEY = 'fe7aa0cd-770b-4637-ab05-523a332169b4:dca9c9ff8f073a4c33704236d8942faa'
 const FAL_IMAGE_API_ENDPOINT = 'https://fal.run/fal-ai/nano-banana'
-const FAL_VIDEO_API_ENDPOINT = 'https://fal.run/fal-ai/hunyuan-video-v1.5/text-to-video'
 
 export async function POST(request: NextRequest) {
   try {
@@ -262,42 +261,32 @@ ${plotInfo}
       exampleStory = `Once upon a time, ${character?.name || 'a hero'} lived in ${plot?.setting || 'a magical place'}. They faced ${plot?.conflict || 'a challenge'} and worked hard to ${plot?.goal || 'achieve their goal'}. In the end, they succeeded and learned an important lesson.`
     }
 
-    // Generate video for the story using fal.ai (replaced image generation)
-    let videoUrl = ''
+    // Generate image for the story using fal.ai
+    let imageUrl = ''
     try {
-      // 构建视频提示词，包含物种信息
-      console.log('Building video prompt, character species:', character?.species)
+      // 构建图片提示词，包含物种信息
+      console.log('Building image prompt, character species:', character?.species)
       const speciesInfo = character?.species 
         ? (character.species === "Boy" || character.species === "Girl" 
           ? `a young ${character.species.toLowerCase()}` 
           : `a ${character.species.toLowerCase()}`)
         : 'a character'
-      const videoPrompt = `A charming illustration for a children's story: ${speciesInfo} named ${character?.name || 'a character'} in ${plot?.setting || 'a setting'}, ${plot?.conflict || 'facing a challenge'}. Colorful, friendly, and suitable for children.`
-      console.log('Video prompt:', videoPrompt)
+      const imagePrompt = `A charming illustration for a children's story: ${speciesInfo} named ${character?.name || 'a character'} in ${plot?.setting || 'a setting'}, ${plot?.conflict || 'facing a challenge'}. Colorful, friendly, and suitable for children.`
+      console.log('Image prompt:', imagePrompt)
       
-      // FAL_KEY 已在代码中硬编码，直接使用
-      // 使用 Hunyuan Video V1.5 模型生成视频
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 300000) // 300秒超时（视频生成需要更长时间）
+      const timeoutId = setTimeout(() => controller.abort(), 120000) // 120秒超时
       
       try {
-        console.log('=== Starting Hunyuan Video Generation (dify-structure-examples) ===')
-        console.log('Endpoint:', FAL_VIDEO_API_ENDPOINT)
-        console.log('Video prompt:', videoPrompt)
-        console.log('FAL_KEY configured:', !!FAL_KEY)
-        
         const requestBody = {
-          prompt: videoPrompt,
-          aspect_ratio: "16:9", // Hunyuan 支持 16:9 或 9:16
-          resolution: "480p", // 默认分辨率
-          num_frames: 121, // 默认帧数（约4秒视频）
-          num_inference_steps: 28, // 默认推理步数
-          enable_prompt_expansion: true, // 启用提示词扩展
+          prompt: imagePrompt,
+          num_images: 1,
+          output_format: 'jpeg',
+          aspect_ratio: '16:9',
+          sync_mode: true,
         }
         
-        console.log('Request body:', JSON.stringify(requestBody, null, 2))
-        
-        const videoResponse = await fetch(FAL_VIDEO_API_ENDPOINT, {
+        const imageResponse = await fetch(FAL_IMAGE_API_ENDPOINT, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -309,44 +298,35 @@ ${plotInfo}
 
         clearTimeout(timeoutId)
 
-        console.log('Response status:', videoResponse.status, videoResponse.statusText)
-
-        if (videoResponse.ok) {
-          const videoData = await videoResponse.json()
-          console.log('Video response data:', JSON.stringify(videoData, null, 2))
-          // Hunyuan Video V1.5 返回格式：{ video: { url: "..." }, seed: ... }
-          videoUrl = videoData.video?.url || ''
-          console.log('Extracted video URL:', videoUrl)
-          if (!videoUrl) {
-            console.warn('No video URL in response, using placeholder')
-            videoUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${character?.name || 'story'}`
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json()
+          imageUrl = imageData.images?.[0]?.url || imageData.image?.url || imageData.url || ''
+          if (!imageUrl) {
+            console.warn('No image URL in response, using placeholder')
+            imageUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${character?.name || 'story'}`
           }
         } else {
-          const errorText = await videoResponse.text()
-          console.error('Fal.ai video generation failed:', videoResponse.status, errorText)
-          console.error('Full error response:', errorText)
-          // 如果API调用失败，使用占位符
-          videoUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${character?.name || 'story'}`
+          const errorText = await imageResponse.text()
+          console.error('Fal.ai image generation failed:', imageResponse.status, errorText)
+          imageUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${character?.name || 'story'}`
         }
       } catch (fetchError: any) {
         clearTimeout(timeoutId)
         if (fetchError.name === 'AbortError') {
-          console.error('Video generation timeout')
+          console.error('Image generation timeout')
         } else {
-          console.error('Error fetching video:', fetchError)
+          console.error('Error fetching image:', fetchError)
         }
-        videoUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${character?.name || 'story'}`
+        imageUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${character?.name || 'story'}`
       }
-    } catch (videoError) {
-      console.error('Error generating video:', videoError)
-      // 如果发生错误，使用占位符作为后备方案
-      videoUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${character?.name || 'story'}`
+    } catch (imageError) {
+      console.error('Error generating image:', imageError)
+      imageUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${character?.name || 'story'}`
     }
 
     return NextResponse.json({
       story: exampleStory,
-      videoUrl: videoUrl, // 改为 videoUrl
-      imageUrl: videoUrl, // 保持向后兼容
+      imageUrl: imageUrl,
       structure_type: structure_type,
     })
   } catch (error) {
