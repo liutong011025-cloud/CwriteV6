@@ -180,7 +180,7 @@ Created with Story Writer
 
         <div className="grid lg:grid-cols-12 gap-6 mt-8">
           {/* 左侧：视频容器 */}
-          <div className="lg:col-span-4 space-y-6">
+          <div className="lg:col-span-5 space-y-6">
             <div className="bg-gradient-to-br from-purple-100/95 via-pink-100/95 to-orange-100/95 backdrop-blur-md rounded-2xl p-6 border-2 border-purple-300 shadow-2xl">
               <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 bg-clip-text text-transparent">
                 Story Video
@@ -285,27 +285,27 @@ Created with Story Writer
           </div>
 
           {/* 右侧：Story Summary */}
-          <div className="lg:col-span-3 space-y-6">
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-8 border-2 border-indigo-200 shadow-xl">
-              <h3 className="text-2xl font-bold mb-6 text-indigo-700">Story Summary</h3>
-              <div className="space-y-4">
-                <div className="bg-white/80 rounded-xl p-4 border-2 border-indigo-200">
-                  <p className="text-sm text-gray-600 font-semibold mb-1">Character</p>
-                  <p className="text-lg font-bold text-indigo-700">{storyState.character?.name}</p>
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-5 border-2 border-indigo-200 shadow-xl">
+              <h3 className="text-lg font-bold mb-3 text-indigo-700">Story Summary</h3>
+              <div className="space-y-2">
+                <div className="bg-white/80 rounded-lg p-2.5 border-2 border-indigo-200">
+                  <p className="text-xs text-gray-600 font-semibold mb-0.5">Character</p>
+                  <p className="text-sm font-bold text-indigo-700">{storyState.character?.name}</p>
                 </div>
                 {storyState.character?.species && (
-                  <div className="bg-white/80 rounded-xl p-4 border-2 border-purple-200">
-                    <p className="text-sm text-gray-600 font-semibold mb-1">Species</p>
-                    <p className="text-lg font-bold text-purple-700">{storyState.character.species}</p>
+                  <div className="bg-white/80 rounded-lg p-2.5 border-2 border-purple-200">
+                    <p className="text-xs text-gray-600 font-semibold mb-0.5">Species</p>
+                    <p className="text-sm font-bold text-purple-700">{storyState.character.species}</p>
                   </div>
                 )}
-                <div className="bg-white/80 rounded-xl p-4 border-2 border-pink-200">
-                  <p className="text-sm text-gray-600 font-semibold mb-1">Setting</p>
-                  <p className="text-lg font-bold text-pink-700">{storyState.plot?.setting}</p>
+                <div className="bg-white/80 rounded-lg p-2.5 border-2 border-pink-200">
+                  <p className="text-xs text-gray-600 font-semibold mb-0.5">Setting</p>
+                  <p className="text-sm font-bold text-pink-700">{storyState.plot?.setting}</p>
                 </div>
-                <div className="bg-white/80 rounded-xl p-4 border-2 border-orange-200">
-                  <p className="text-sm text-gray-600 font-semibold mb-1">Type</p>
-                  <p className="text-lg font-bold text-orange-700 capitalize">{storyState.structure?.type}</p>
+                <div className="bg-white/80 rounded-lg p-2.5 border-2 border-orange-200">
+                  <p className="text-xs text-gray-600 font-semibold mb-0.5">Type</p>
+                  <p className="text-sm font-bold text-orange-700 capitalize">{storyState.structure?.type}</p>
                 </div>
               </div>
             </div>
@@ -313,7 +313,7 @@ Created with Story Writer
             <Button 
               onClick={onReset} 
               size="lg" 
-              className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white border-0 shadow-xl py-6 text-lg font-bold"
+              className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white border-0 shadow-xl py-4 text-sm font-bold"
             >
               Create New Story
             </Button>
