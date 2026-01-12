@@ -49,8 +49,12 @@ Review type: ${reviewTypeName}
 
 Your task:
 1. Judge if this book is suitable for a ${reviewTypeName}
-2. If NOT suitable, use a cute, friendly tone to explain why and suggest a similar book (e.g., "Oh, this book might be a bit tricky! 😊 How about trying 'Captain Underpants' instead? It's super fun! 📚✨")
-3. If suitable, use a cute, encouraging tone and say "Let's start writing" in English (e.g., "Great choice! This book is perfect for your review! Let's start writing! ✨📝")
+2. If NOT suitable, use a cute, friendly tone to explain why and suggest a similar book. CRITICAL: Do NOT use any phrases like "Let's start writing", "Let's begin writing", "Let's write", or "Let's get started" in your response.
+3. If suitable, you MUST end your response with one of these exact phrases: "Let's start writing", "Let's begin writing", "Let's start writing now", "Let's begin writing now", "Ready to start writing", "Let's write", or "Let's get started". Use a cute, encouraging tone with emojis.
+
+CRITICAL RULES:
+- If the book is suitable: Your response MUST contain one of the phrases: "Let's start writing", "Let's begin writing", "Let's start writing now", "Let's begin writing now", "Ready to start writing", "Let's write", or "Let's get started"
+- If the book is NOT suitable: Your response MUST NOT contain any of these phrases
 
 Be warm, cute, and encouraging. Use English.`
 
