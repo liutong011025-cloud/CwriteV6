@@ -1,9 +1,11 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import type { Language, StoryState } from "@/app/page"
 import StageHeader from "@/components/stage-header"
+import { toast } from "sonner"
+import { Loader2 } from "lucide-react"
 
 interface StoryReviewProps {
   language: Language
@@ -19,6 +21,10 @@ export default function StoryReview({ storyState, onReset, onEdit, onBack, userI
   // 使用ref来跟踪是否已经保存过，避免重复保存
   const hasSavedRef = useRef(false)
   const savedStoryRef = useRef<string>("")
+  
+  // 视频生成相关状态
+  const [videoUrl, setVideoUrl] = useState<string>("")
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
 
   // 保存故事内容到interactions API
   useEffect(() => {
@@ -96,6 +102,49 @@ Created with Story Writer
     a.click()
   }
 
+  const handleGenerateVideo = async () => {
+    if (!storyState.story) {
+      toast.error("Please write a story first")
+      return
+    }
+
+    setIsGeneratingVideo(true)
+    try {
+      const response = await fetch("/api/generate-story-video", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          story: storyState.story,
+          character: storyState.character,
+          plot: storyState.plot,
+          user_id: userId,
+          duration: "5", // 默认5秒
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.error) {
+        toast.error(`Failed to generate video: ${data.error}`)
+        return
+      }
+
+      if (data.videoUrl) {
+        setVideoUrl(data.videoUrl)
+        toast.success("Video generated successfully! 🎬")
+      } else {
+        toast.error("Failed to get video URL")
+      }
+    } catch (error: any) {
+      console.error("Error generating video:", error)
+      toast.error(`Failed to generate video: ${error.message || 'Unknown error'}`)
+    } finally {
+      setIsGeneratingVideo(false)
+    }
+  }
+
   return (
     <div className="min-h-screen py-8 px-6 bg-gradient-to-br from-indigo-100 via-purple-50 via-pink-50 to-orange-50 relative" style={{ paddingTop: '120px', paddingBottom: '120px' }}>
       {/* 背景图片 - 使用结构生成的图片 */}
@@ -145,6 +194,44 @@ Created with Story Writer
               >
                 Edit Story
               </Button>
+            </div>
+
+            {/* 视频生成部分 */}
+            <div className="mt-6 space-y-4">
+              <Button 
+                onClick={handleGenerateVideo}
+                disabled={isGeneratingVideo || !storyState.story}
+                size="lg"
+                className="w-full bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 hover:from-purple-700 hover:via-pink-700 hover:to-orange-700 text-white border-0 shadow-xl py-6 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGeneratingVideo ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Generating Video...
+                  </>
+                ) : (
+                  "🎬 Generate Story Video"
+                )}
+              </Button>
+
+              {videoUrl && (
+                <div className="bg-gradient-to-br from-white via-purple-50 to-pink-50 rounded-xl p-6 border-4 border-purple-300 shadow-2xl">
+                  <h3 className="text-2xl font-bold mb-4 text-purple-700">Story Video</h3>
+                  <div className="relative bg-black rounded-lg overflow-hidden">
+                    <video
+                      src={videoUrl}
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="w-full h-auto max-h-[600px] object-contain"
+                    >
+                      您的浏览器不支持视频播放
+                    </video>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
