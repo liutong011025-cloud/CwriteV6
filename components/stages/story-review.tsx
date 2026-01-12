@@ -25,8 +25,6 @@ export default function StoryReview({ storyState, onReset, onEdit, onBack, userI
   // 视频生成相关状态
   const [videoUrl, setVideoUrl] = useState<string>("")
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
-  const [showVideo, setShowVideo] = useState(false)
-  const [videoHasPlayed, setVideoHasPlayed] = useState(false)
   const videoGeneratedRef = useRef(false)
 
   // 保存故事内容到interactions API
@@ -113,8 +111,6 @@ export default function StoryReview({ storyState, onReset, onEdit, onBack, userI
           if (data.videoUrl) {
             setVideoUrl(data.videoUrl)
             setIsGeneratingVideo(false)
-            // 视频生成成功后，显示视频（全屏播放）
-            setShowVideo(true)
           } else {
             setIsGeneratingVideo(false)
           }
@@ -129,46 +125,6 @@ export default function StoryReview({ storyState, onReset, onEdit, onBack, userI
     }
   }, [storyState.story, userId, storyState.character, storyState.plot])
 
-  // 处理视频播放结束
-  const handleVideoEnded = () => {
-    setVideoHasPlayed(true)
-    setShowVideo(false)
-    // 退出全屏（如果处于全屏状态）
-    if (document.exitFullscreen) {
-      document.exitFullscreen()
-    } else if ((document as any).mozCancelFullScreen) {
-      (document as any).mozCancelFullScreen()
-    } else if ((document as any).webkitExitFullscreen) {
-      (document as any).webkitExitFullscreen()
-    } else if ((document as any).msExitFullscreen) {
-      (document as any).msExitFullscreen()
-    }
-  }
-
-  // 请求全屏播放视频
-  useEffect(() => {
-    if (showVideo && videoUrl) {
-      // 延迟一点时间确保DOM更新
-      setTimeout(() => {
-        const videoElement = document.getElementById('story-video-player') as HTMLVideoElement
-        const container = document.getElementById('story-video-container')
-        if (container) {
-          if (container.requestFullscreen) {
-            container.requestFullscreen()
-          } else if ((container as any).mozRequestFullScreen) {
-            (container as any).mozRequestFullScreen()
-          } else if ((container as any).webkitRequestFullscreen) {
-            (container as any).webkitRequestFullscreen()
-          } else if ((container as any).msRequestFullscreen) {
-            (container as any).msRequestFullscreen()
-          }
-        }
-        if (videoElement) {
-          videoElement.play().catch(err => console.error("Video play error:", err))
-        }
-      }, 100)
-    }
-  }, [showVideo, videoUrl])
 
   const handleDownload = () => {
     if (!storyState.story) return
@@ -204,37 +160,6 @@ Created with Story Writer
 
   return (
     <div className="min-h-screen py-8 px-6 bg-gradient-to-br from-indigo-100 via-purple-50 via-pink-50 to-orange-50 relative" style={{ paddingTop: '120px', paddingBottom: '120px' }}>
-      {/* 加载界面 */}
-      {isGeneratingVideo && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
-          <div className="text-center">
-            <Loader2 className="h-16 w-16 animate-spin text-white mx-auto mb-4" />
-            <p className="text-white text-xl font-semibold">正在生成视频...</p>
-            <p className="text-white/70 text-sm mt-2">这可能需要几分钟时间</p>
-          </div>
-        </div>
-      )}
-
-      {/* 全屏视频播放 */}
-      {showVideo && videoUrl && (
-        <div
-          id="story-video-container"
-          className="fixed inset-0 z-50 bg-black flex items-center justify-center"
-        >
-          <video
-            id="story-video-player"
-            src={videoUrl}
-            autoPlay
-            muted
-            playsInline
-            onEnded={handleVideoEnded}
-            className="w-full h-full object-contain"
-          >
-            您的浏览器不支持视频播放
-          </video>
-        </div>
-      )}
-
       {/* 背景图片 - 使用结构生成的图片 */}
       {storyState.structure?.imageUrl && (
         <div className="fixed inset-0 z-0">
@@ -254,7 +179,81 @@ Created with Story Writer
         <StageHeader stage={5} title="Your Story is Complete!" onBack={onBack} />
 
         <div className="grid lg:grid-cols-12 gap-6 mt-8">
-          <div className="lg:col-span-8 space-y-6">
+          {/* 左侧：视频容器 */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-gradient-to-br from-purple-100/95 via-pink-100/95 to-orange-100/95 backdrop-blur-md rounded-2xl p-6 border-2 border-purple-300 shadow-2xl">
+              <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 bg-clip-text text-transparent">
+                Story Video
+              </h3>
+              
+              {isGeneratingVideo ? (
+                <div className="relative bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 rounded-xl p-8 border-2 border-purple-200 min-h-[400px] flex items-center justify-center">
+                  {/* 有趣的加载动画 */}
+                  <div className="text-center">
+                    <div className="relative mx-auto mb-6 w-24 h-24">
+                      {/* 旋转的圆圈 */}
+                      <div className="absolute inset-0 border-4 border-purple-200 rounded-full"></div>
+                      <div className="absolute inset-0 border-4 border-transparent border-t-purple-600 rounded-full animate-spin"></div>
+                      <div className="absolute inset-2 border-4 border-pink-200 rounded-full"></div>
+                      <div className="absolute inset-2 border-4 border-transparent border-t-pink-600 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+                      {/* 中心图标 */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-3xl animate-pulse">🎬</span>
+                      </div>
+                    </div>
+                    
+                    {/* 文字动画 */}
+                    <div className="space-y-2">
+                      <p className="text-purple-700 text-lg font-semibold animate-pulse">
+                        Generating Video...
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        This may take a few minutes
+                      </p>
+                      
+                      {/* 跳动的点 */}
+                      <div className="flex justify-center gap-2 mt-4">
+                        <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+                        <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* 背景装饰 */}
+                  <div className="absolute inset-0 overflow-hidden rounded-xl">
+                    <div className="absolute top-0 left-0 w-32 h-32 bg-purple-200 rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-pulse"></div>
+                    <div className="absolute bottom-0 right-0 w-32 h-32 bg-pink-200 rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-pulse" style={{ animationDelay: '1s' }}></div>
+                  </div>
+                </div>
+              ) : videoUrl ? (
+                <div className="bg-gradient-to-br from-white via-purple-50 to-pink-50 rounded-xl p-4 border-2 border-purple-200 shadow-xl">
+                  <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
+                    <video
+                      src={videoUrl}
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="w-full h-full object-contain"
+                    >
+                      Your browser does not support video playback
+                    </video>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl p-8 border-2 border-gray-300 min-h-[400px] flex items-center justify-center">
+                  <p className="text-gray-500 text-center">
+                    Video will appear here once generated
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 中间：故事内容 */}
+          <div className="lg:col-span-5 space-y-6">
             <div className="bg-gradient-to-br from-purple-100/95 via-pink-100/95 to-orange-100/95 backdrop-blur-md rounded-2xl p-10 border-2 border-purple-300 shadow-2xl">
               <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 bg-clip-text text-transparent">
                 {storyState.character?.name}'s Adventure
@@ -285,7 +284,8 @@ Created with Story Writer
             </div>
           </div>
 
-          <div className="lg:col-span-4 space-y-6">
+          {/* 右侧：Story Summary */}
+          <div className="lg:col-span-3 space-y-6">
             <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-8 border-2 border-indigo-200 shadow-xl">
               <h3 className="text-2xl font-bold mb-6 text-indigo-700">Story Summary</h3>
               <div className="space-y-4">
