@@ -41,13 +41,10 @@ export default function PlotBrainstorm({ language, character, onPlotCreate, onBa
     sendInitialMessage()
   }, [])
 
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
+  // 已取消自动滚动功能
+  // const scrollToBottom = () => {
+  //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  // }
 
   const extractLastSixWords = (text: string): { words: string[], cleanedText: string } => {
     // 分割单词，去除逗号但保留其他标点符号在问题中
@@ -467,6 +464,7 @@ Continue guiding step by step. Each response should:
                     </div>
                   </div>
                 )}
+                {/* 滚动锚点已移除，不再自动滚动 */}
                 <div ref={messagesEndRef} />
               </div>
 
