@@ -25,6 +25,9 @@ export default function StoryReview({ storyState, onReset, onEdit, onBack, userI
   // 视频生成相关状态
   const [videoUrl, setVideoUrl] = useState<string>("")
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
+  const [showVideo, setShowVideo] = useState(false)
+  const [videoHasPlayed, setVideoHasPlayed] = useState(false)
+  const videoGeneratedRef = useRef(false)
 
   // 保存故事内容到interactions API
   useEffect(() => {
@@ -70,6 +73,103 @@ export default function StoryReview({ storyState, onReset, onEdit, onBack, userI
       })
     }
   }, [storyState.story, userId, storyState.character, storyState.plot, storyState.structure])
+
+  // 自动生成视频
+  useEffect(() => {
+    // 只有当故事内容存在且还没有生成过视频时，才生成视频
+    if (storyState.story && !videoGeneratedRef.current && !isGeneratingVideo && !videoUrl) {
+      videoGeneratedRef.current = true
+      
+      const generateVideo = async () => {
+        if (!storyState.story) {
+          return
+        }
+
+        setIsGeneratingVideo(true)
+        try {
+          const response = await fetch("/api/generate-story-video", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              story: storyState.story,
+              character: storyState.character,
+              plot: storyState.plot,
+              user_id: userId,
+              duration: "10", // 使用10秒（Kling Video v2.6最大支持）
+            }),
+          })
+
+          const data = await response.json()
+
+          if (data.error) {
+            console.error("Video generation failed:", data.error)
+            // 生成失败时不显示错误提示，静默失败，允许用户继续浏览
+            setIsGeneratingVideo(false)
+            return
+          }
+
+          if (data.videoUrl) {
+            setVideoUrl(data.videoUrl)
+            setIsGeneratingVideo(false)
+            // 视频生成成功后，显示视频（全屏播放）
+            setShowVideo(true)
+          } else {
+            setIsGeneratingVideo(false)
+          }
+        } catch (error: any) {
+          console.error("Error generating video:", error)
+          // 生成失败时静默失败，允许用户继续浏览
+          setIsGeneratingVideo(false)
+        }
+      }
+      
+      generateVideo()
+    }
+  }, [storyState.story, userId, storyState.character, storyState.plot])
+
+  // 处理视频播放结束
+  const handleVideoEnded = () => {
+    setVideoHasPlayed(true)
+    setShowVideo(false)
+    // 退出全屏（如果处于全屏状态）
+    if (document.exitFullscreen) {
+      document.exitFullscreen()
+    } else if ((document as any).mozCancelFullScreen) {
+      (document as any).mozCancelFullScreen()
+    } else if ((document as any).webkitExitFullscreen) {
+      (document as any).webkitExitFullscreen()
+    } else if ((document as any).msExitFullscreen) {
+      (document as any).msExitFullscreen()
+    }
+  }
+
+  // 请求全屏播放视频
+  useEffect(() => {
+    if (showVideo && videoUrl) {
+      // 延迟一点时间确保DOM更新
+      setTimeout(() => {
+        const videoElement = document.getElementById('story-video-player') as HTMLVideoElement
+        const container = document.getElementById('story-video-container')
+        if (container) {
+          if (container.requestFullscreen) {
+            container.requestFullscreen()
+          } else if ((container as any).mozRequestFullScreen) {
+            (container as any).mozRequestFullScreen()
+          } else if ((container as any).webkitRequestFullscreen) {
+            (container as any).webkitRequestFullscreen()
+          } else if ((container as any).msRequestFullscreen) {
+            (container as any).msRequestFullscreen()
+          }
+        }
+        if (videoElement) {
+          videoElement.play().catch(err => console.error("Video play error:", err))
+        }
+      }, 100)
+    }
+  }, [showVideo, videoUrl])
+
   const handleDownload = () => {
     if (!storyState.story) return
 
@@ -102,51 +202,39 @@ Created with Story Writer
     a.click()
   }
 
-  const handleGenerateVideo = async () => {
-    if (!storyState.story) {
-      toast.error("Please write a story first")
-      return
-    }
-
-    setIsGeneratingVideo(true)
-    try {
-      const response = await fetch("/api/generate-story-video", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          story: storyState.story,
-          character: storyState.character,
-          plot: storyState.plot,
-          user_id: userId,
-          duration: "5", // 默认5秒
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.error) {
-        toast.error(`Failed to generate video: ${data.error}`)
-        return
-      }
-
-      if (data.videoUrl) {
-        setVideoUrl(data.videoUrl)
-        toast.success("Video generated successfully! 🎬")
-      } else {
-        toast.error("Failed to get video URL")
-      }
-    } catch (error: any) {
-      console.error("Error generating video:", error)
-      toast.error(`Failed to generate video: ${error.message || 'Unknown error'}`)
-    } finally {
-      setIsGeneratingVideo(false)
-    }
-  }
-
   return (
     <div className="min-h-screen py-8 px-6 bg-gradient-to-br from-indigo-100 via-purple-50 via-pink-50 to-orange-50 relative" style={{ paddingTop: '120px', paddingBottom: '120px' }}>
+      {/* 加载界面 */}
+      {isGeneratingVideo && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-16 w-16 animate-spin text-white mx-auto mb-4" />
+            <p className="text-white text-xl font-semibold">正在生成视频...</p>
+            <p className="text-white/70 text-sm mt-2">这可能需要几分钟时间</p>
+          </div>
+        </div>
+      )}
+
+      {/* 全屏视频播放 */}
+      {showVideo && videoUrl && (
+        <div
+          id="story-video-container"
+          className="fixed inset-0 z-50 bg-black flex items-center justify-center"
+        >
+          <video
+            id="story-video-player"
+            src={videoUrl}
+            autoPlay
+            muted
+            playsInline
+            onEnded={handleVideoEnded}
+            className="w-full h-full object-contain"
+          >
+            您的浏览器不支持视频播放
+          </video>
+        </div>
+      )}
+
       {/* 背景图片 - 使用结构生成的图片 */}
       {storyState.structure?.imageUrl && (
         <div className="fixed inset-0 z-0">
@@ -194,44 +282,6 @@ Created with Story Writer
               >
                 Edit Story
               </Button>
-            </div>
-
-            {/* 视频生成部分 */}
-            <div className="mt-6 space-y-4">
-              <Button 
-                onClick={handleGenerateVideo}
-                disabled={isGeneratingVideo || !storyState.story}
-                size="lg"
-                className="w-full bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 hover:from-purple-700 hover:via-pink-700 hover:to-orange-700 text-white border-0 shadow-xl py-6 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isGeneratingVideo ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Generating Video...
-                  </>
-                ) : (
-                  "🎬 Generate Story Video"
-                )}
-              </Button>
-
-              {videoUrl && (
-                <div className="bg-gradient-to-br from-white via-purple-50 to-pink-50 rounded-xl p-6 border-4 border-purple-300 shadow-2xl">
-                  <h3 className="text-2xl font-bold mb-4 text-purple-700">Story Video</h3>
-                  <div className="relative bg-black rounded-lg overflow-hidden">
-                    <video
-                      src={videoUrl}
-                      controls
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      className="w-full h-auto max-h-[600px] object-contain"
-                    >
-                      您的浏览器不支持视频播放
-                    </video>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
