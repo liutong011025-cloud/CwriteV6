@@ -72,56 +72,59 @@ export default function StoryReview({ storyState, onReset, onEdit, onBack, userI
     }
   }, [storyState.story, userId, storyState.character, storyState.plot, storyState.structure])
 
-  // 自动生成视频
+  // 自动生成视频 - 一直显示加载状态，不实际调用API
   useEffect(() => {
-    // 只有当故事内容存在且还没有生成过视频时，才生成视频
-    if (storyState.story && !videoGeneratedRef.current && !isGeneratingVideo && !videoUrl) {
+    // 只有当故事内容存在且还没有设置过加载状态时，才设置加载状态
+    if (storyState.story && !videoGeneratedRef.current) {
       videoGeneratedRef.current = true
+      // 一直保持加载状态，不调用实际API
+      setIsGeneratingVideo(true)
       
-      const generateVideo = async () => {
-        if (!storyState.story) {
-          return
-        }
+      // 注释掉实际的API调用，让视频一直显示加载状态
+      // const generateVideo = async () => {
+      //   if (!storyState.story) {
+      //     return
+      //   }
 
-        setIsGeneratingVideo(true)
-        try {
-          const response = await fetch("/api/generate-story-video", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              story: storyState.story,
-              character: storyState.character,
-              plot: storyState.plot,
-              user_id: userId,
-              duration: "10", // 使用10秒（Kling Video v2.6最大支持）
-            }),
-          })
+      //   setIsGeneratingVideo(true)
+      //   try {
+      //     const response = await fetch("/api/generate-story-video", {
+      //       method: "POST",
+      //       headers: {
+      //         "Content-Type": "application/json",
+      //       },
+      //       body: JSON.stringify({
+      //         story: storyState.story,
+      //         character: storyState.character,
+      //         plot: storyState.plot,
+      //         user_id: userId,
+      //         duration: "10", // 使用10秒（Kling Video v2.6最大支持）
+      //       }),
+      //     })
 
-          const data = await response.json()
+      //     const data = await response.json()
 
-          if (data.error) {
-            console.error("Video generation failed:", data.error)
-            // 生成失败时不显示错误提示，静默失败，允许用户继续浏览
-            setIsGeneratingVideo(false)
-            return
-          }
+      //     if (data.error) {
+      //       console.error("Video generation failed:", data.error)
+      //       // 生成失败时不显示错误提示，静默失败，允许用户继续浏览
+      //       setIsGeneratingVideo(false)
+      //       return
+      //     }
 
-          if (data.videoUrl) {
-            setVideoUrl(data.videoUrl)
-            setIsGeneratingVideo(false)
-          } else {
-            setIsGeneratingVideo(false)
-          }
-        } catch (error: any) {
-          console.error("Error generating video:", error)
-          // 生成失败时静默失败，允许用户继续浏览
-          setIsGeneratingVideo(false)
-        }
-      }
+      //     if (data.videoUrl) {
+      //       setVideoUrl(data.videoUrl)
+      //       setIsGeneratingVideo(false)
+      //     } else {
+      //       setIsGeneratingVideo(false)
+      //     }
+      //   } catch (error: any) {
+      //     console.error("Error generating video:", error)
+      //     // 生成失败时静默失败，允许用户继续浏览
+      //     setIsGeneratingVideo(false)
+      //   }
+      // }
       
-      generateVideo()
+      // generateVideo()
     }
   }, [storyState.story, userId, storyState.character, storyState.plot])
 
