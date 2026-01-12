@@ -37,18 +37,12 @@ export default function PlotBrainstorm({ language, character, onPlotCreate, onBa
   const [summaryDone, setSummaryDone] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const userSentMessageRef = useRef(false)
-
   useEffect(() => {
     sendInitialMessage()
   }, [])
 
-  // 只在用户发送消息后滚动，而不是每次AI回复时都滚动
   useEffect(() => {
-    if (userSentMessageRef.current) {
-      scrollToBottom()
-      userSentMessageRef.current = false
-    }
+    scrollToBottom()
   }, [messages])
 
   const scrollToBottom = () => {
@@ -184,7 +178,6 @@ Continue guiding step by step. Each response should:
     setMessages((prev) => [...prev, userMessage])
     setInput("")
     setIsLoading(true)
-    userSentMessageRef.current = true // 标记用户发送了消息
 
     try {
       const response = await fetch("/api/dify-chat", {
