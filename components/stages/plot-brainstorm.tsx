@@ -36,15 +36,28 @@ export default function PlotBrainstorm({ language, character, onPlotCreate, onBa
   const [summaryConversationId, setSummaryConversationId] = useState<string | null>(null)
   const [summaryDone, setSummaryDone] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     sendInitialMessage()
   }, [])
 
-  // 已取消自动滚动功能
-  // const scrollToBottom = () => {
-  //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  // }
+  // 实时滚动到底部：每次消息更新时都滚动到最新消息
+  const scrollToBottom = () => {
+    if (messagesContainerRef.current) {
+      // 直接设置滚动位置到底部，确保实时滚动
+      const container = messagesContainerRef.current
+      container.scrollTop = container.scrollHeight
+    }
+  }
+
+  // 当消息更新时，实时滚动到底部
+  useEffect(() => {
+    // 使用 requestAnimationFrame 确保 DOM 已完全更新后再滚动
+    requestAnimationFrame(() => {
+      scrollToBottom()
+    })
+  }, [messages])
 
   const extractLastSixWords = (text: string): { words: string[], cleanedText: string } => {
     // 分割单词，去除逗号但保留其他标点符号在问题中
@@ -111,7 +124,7 @@ ${characterInfo}
 
 IMPORTANT: Always refer to the character by their name "${characterName}"${characterSpecies ? ` (a ${character.species})` : ""}, NOT "your character" or "the character". Use "${characterName}" in your questions.
 
-Start by asking: "Where does ${characterName}'s story take place?" Then end your response with exactly six SINGLE WORDS related to story settings (like: school home forest park beach library). Each word must be a single word, not a phrase. Don't use commas between the six words - just space them. Keep proper punctuation in your question (question marks, periods, etc.).
+Start by asking: "Where does ${characterName}'s story take place?" (in Chinese: ${characterName}的故事发生在哪呢？) Then end your response with exactly six SINGLE WORDS related to story settings (like: school home forest park beach library). Each word must be a single word, not a phrase. Don't use commas between the six words - just space them. Keep proper punctuation in your question (question marks, periods, etc.).
 
 Continue guiding the student step by step. Each response should:
 - Always use "${characterName}"${characterSpecies ? ` (the ${character.species})` : ""} in your questions, NOT "your character"
@@ -286,26 +299,55 @@ Continue guiding step by step. Each response should:
         setSummaryConversationId(data.conversation_id)
       }
 
-      if (data.error) {
-        // 如果信息不足，总结API不会返回结果，这是正常的
-        console.log("Plot summary not ready yet:", data.error)
-        return
-      }
+      // 计算学生消息数量
+      const studentMessageCount = messagesToUse.filter(msg => msg.role === 'user').length
+      const reachedMaxRounds = studentMessageCount >= 10
 
-      // 检查是否需要更多对话
-      if (data.needsMoreConversation) {
-        console.log("Plot summary needs more conversation")
-        return
+      // 如果达到10轮，强制完成，即使有错误或需要更多对话
+      if (reachedMaxRounds) {
+        console.log("Reached 10 rounds, forcing summary completion")
+        
+        // 如果API返回错误或需要更多对话，使用默认值
+        if (data.error || data.needsMoreConversation) {
+          // 强制设置summaryDone，并尝试从已有数据中提取
+          setSummaryDone(true)
+          
+          // 如果API没有返回summary，使用默认值
+          if (!data.summary || data.summary.trim() === '') {
+            // 使用当前已有的plotData，如果为空则设为unknown
+            setPlotData((prev) => ({
+              setting: prev.setting || "unknown",
+              conflict: prev.conflict || "unknown",
+              goal: prev.goal || "unknown"
+            }))
+            return
+          }
+        }
+      } else {
+        // 未达到10轮时，正常处理错误和needsMoreConversation
+        if (data.error) {
+          console.log("Plot summary not ready yet:", data.error)
+          return
+        }
+
+        if (data.needsMoreConversation) {
+          console.log("Plot summary needs more conversation")
+          return
+        }
       }
 
       const summary = data.summary || ""
       
       console.log("Plot summary result:", summary)
       
-      // 检查是否输出"done"
-      if (summary.toLowerCase().includes("done")) {
+      // 检查是否输出"done"，或者如果对话轮数达到10轮也标记为完成
+      const studentMessageCount = messagesToUse.filter(msg => msg.role === 'user').length
+      const isDone = summary.toLowerCase().includes("done")
+      const reachedMaxRounds = studentMessageCount >= 10
+      
+      if (isDone || reachedMaxRounds) {
         setSummaryDone(true)
-        console.log("Summary done signal received")
+        console.log("Summary done signal received", { isDone, reachedMaxRounds, studentMessageCount })
       }
       
       // 解析总结结果，提取setting、conflict、goal
@@ -321,20 +363,27 @@ Continue guiding step by step. Each response should:
         goal: goalMatch?.[1]
       })
 
+      // 使用函数式更新确保使用最新的plotData状态
       if (settingMatch && settingMatch[1].trim()) {
         // 去掉可能的"setting:"前缀和多余空格
         let newSetting = settingMatch[1].trim().replace(/^setting[：:]\s*/i, "").trim()
         // Setting 允许单个单词，不进行长度检查
-        if (newSetting && newSetting.toLowerCase() !== "unknown" && newSetting !== plotData.setting) {
-          setUpdatingFields((prev) => new Set([...prev, "setting"]))
-          setPlotData((prev) => ({ ...prev, setting: newSetting }))
-          setTimeout(() => {
-            setUpdatingFields((prev) => {
-              const newSet = new Set(prev)
-              newSet.delete("setting")
-              return newSet
-            })
-          }, 1000)
+        if (newSetting && newSetting.toLowerCase() !== "unknown") {
+          setPlotData((prev) => {
+            // 只有值不同时才更新
+            if (newSetting !== prev.setting) {
+              setUpdatingFields((prevFields) => new Set([...prevFields, "setting"]))
+              setTimeout(() => {
+                setUpdatingFields((prevFields) => {
+                  const newSet = new Set(prevFields)
+                  newSet.delete("setting")
+                  return newSet
+                })
+              }, 1000)
+              return { ...prev, setting: newSetting }
+            }
+            return prev
+          })
         } else if (newSetting && newSetting.toLowerCase() === "unknown") {
           setPlotData((prev) => ({ ...prev, setting: "unknown" }))
         }
@@ -344,16 +393,22 @@ Continue guiding step by step. Each response should:
         // 去掉可能的"conflict:"前缀和多余空格
         let newConflict = conflictMatch[1].trim().replace(/^conflict[：:]\s*/i, "").trim()
         // 如果提取到内容且不是 "unknown"，就使用它（允许单个词或短句）
-        if (newConflict && newConflict.toLowerCase() !== "unknown" && newConflict !== plotData.conflict) {
-          setUpdatingFields((prev) => new Set([...prev, "conflict"]))
-          setPlotData((prev) => ({ ...prev, conflict: newConflict }))
-          setTimeout(() => {
-            setUpdatingFields((prev) => {
-              const newSet = new Set(prev)
-              newSet.delete("conflict")
-              return newSet
-            })
-          }, 1000)
+        if (newConflict && newConflict.toLowerCase() !== "unknown") {
+          setPlotData((prev) => {
+            // 只有值不同时才更新
+            if (newConflict !== prev.conflict) {
+              setUpdatingFields((prevFields) => new Set([...prevFields, "conflict"]))
+              setTimeout(() => {
+                setUpdatingFields((prevFields) => {
+                  const newSet = new Set(prevFields)
+                  newSet.delete("conflict")
+                  return newSet
+                })
+              }, 1000)
+              return { ...prev, conflict: newConflict }
+            }
+            return prev
+          })
         } else if (newConflict && newConflict.toLowerCase() === "unknown") {
           setPlotData((prev) => ({ ...prev, conflict: "unknown" }))
         }
@@ -363,16 +418,22 @@ Continue guiding step by step. Each response should:
         // 去掉可能的"goal:"前缀和多余空格
         let newGoal = goalMatch[1].trim().replace(/^goal[：:]\s*/i, "").trim()
         // 如果提取到内容且不是 "unknown"，就使用它（允许单个词或短句）
-        if (newGoal && newGoal.toLowerCase() !== "unknown" && newGoal !== plotData.goal) {
-          setUpdatingFields((prev) => new Set([...prev, "goal"]))
-          setPlotData((prev) => ({ ...prev, goal: newGoal }))
-          setTimeout(() => {
-            setUpdatingFields((prev) => {
-              const newSet = new Set(prev)
-              newSet.delete("goal")
-              return newSet
-            })
-          }, 1000)
+        if (newGoal && newGoal.toLowerCase() !== "unknown") {
+          setPlotData((prev) => {
+            // 只有值不同时才更新
+            if (newGoal !== prev.goal) {
+              setUpdatingFields((prevFields) => new Set([...prevFields, "goal"]))
+              setTimeout(() => {
+                setUpdatingFields((prevFields) => {
+                  const newSet = new Set(prevFields)
+                  newSet.delete("goal")
+                  return newSet
+                })
+              }, 1000)
+              return { ...prev, goal: newGoal }
+            }
+            return prev
+          })
         } else if (newGoal && newGoal.toLowerCase() === "unknown") {
           setPlotData((prev) => ({ ...prev, goal: "unknown" }))
         }
@@ -387,14 +448,23 @@ Continue guiding step by step. Each response should:
     sendMessage(suggestion)
   }
 
-  // 检查是否可以继续：三个字段都不能是unknown或空
-  const canContinue = summaryDone && 
-    plotData.setting && 
-    plotData.setting.toLowerCase() !== "unknown" &&
-    plotData.conflict && 
-    plotData.conflict.toLowerCase() !== "unknown" &&
-    plotData.goal && 
-    plotData.goal.toLowerCase() !== "unknown"
+  // 计算学生消息数量
+  const studentMessageCount = messages.filter(msg => msg.role === 'user').length
+  const reachedMaxRounds = studentMessageCount >= 10
+
+  // 检查是否可以继续：
+  // 1. 如果达到10轮，只要summaryDone为true就可以继续（即使有unknown）
+  // 2. 否则，三个字段都不能是unknown或空
+  const canContinue = summaryDone && (
+    reachedMaxRounds || (
+      plotData.setting && 
+      plotData.setting.toLowerCase() !== "unknown" &&
+      plotData.conflict && 
+      plotData.conflict.toLowerCase() !== "unknown" &&
+      plotData.goal && 
+      plotData.goal.toLowerCase() !== "unknown"
+    )
+  )
 
   const handleContinue = () => {
     // Check if summary is done and all fields are not unknown
@@ -415,7 +485,7 @@ Continue guiding step by step. Each response should:
         <div className="grid lg:grid-cols-12 gap-6 mt-8">
           <div className="lg:col-span-9">
             <div className="bg-gradient-to-br from-white to-purple-50 rounded-2xl p-8 border-2 border-purple-200 shadow-2xl">
-              <div className="h-[600px] overflow-y-auto mb-6 space-y-4 pr-4">
+              <div ref={messagesContainerRef} className="h-[600px] overflow-y-auto mb-6 space-y-4 pr-4">
                 {messages.map((message, index) => (
                   <div
                     key={index}
@@ -464,7 +534,7 @@ Continue guiding step by step. Each response should:
                     </div>
                   </div>
                 )}
-                {/* 滚动锚点已移除，不再自动滚动 */}
+                {/* 滚动锚点 - 用于实时滚动到最新消息 */}
                 <div ref={messagesEndRef} />
               </div>
 
