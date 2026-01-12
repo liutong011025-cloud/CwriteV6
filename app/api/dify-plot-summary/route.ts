@@ -44,17 +44,17 @@ export async function POST(request: NextRequest) {
     }
     
     // 总结机器人的设定：只分析学生的回答，提取Setting、Conflict、Goal
-    // 需要学生多交流几个回合才总结，特别是 Conflict 和 Goal
+    // 确保在10轮对话内完成总结
     const studentMessageCount = studentMessages.length
+    const MAX_ROUNDS = 10 // 最大对话轮数
     
-    // 根据对话轮数决定是否总结
-    let shouldSummarize = false
+    // 根据对话轮数决定提取哪些字段
     let fieldsToExtract: string[] = []
+    let isForceComplete = false // 是否强制完成
     
     if (studentMessageCount >= 1) {
       // 第一轮后可以提取 Setting
       fieldsToExtract.push('setting')
-      shouldSummarize = true
     }
     
     if (studentMessageCount >= 2) {
@@ -63,11 +63,21 @@ export async function POST(request: NextRequest) {
     }
     
     if (studentMessageCount >= 3) {
-      // 第三轮后可以提取 Goal（降低触发条件）
+      // 第三轮后可以提取 Goal
       fieldsToExtract.push('goal')
     }
     
-    if (!shouldSummarize || fieldsToExtract.length === 0) {
+    // 如果达到10轮，强制完成所有字段的提取
+    if (studentMessageCount >= MAX_ROUNDS) {
+      isForceComplete = true
+      // 确保所有字段都被提取
+      if (!fieldsToExtract.includes('setting')) fieldsToExtract.push('setting')
+      if (!fieldsToExtract.includes('conflict')) fieldsToExtract.push('conflict')
+      if (!fieldsToExtract.includes('goal')) fieldsToExtract.push('goal')
+    }
+    
+    // 至少需要1轮对话才开始总结
+    if (studentMessageCount < 1 || fieldsToExtract.length === 0) {
       return NextResponse.json({
         summary: '',
         conversation_id: conversation_id,
@@ -75,10 +85,15 @@ export async function POST(request: NextRequest) {
       })
     }
     
+    // 构建提示词
+    const forceCompleteMessage = isForceComplete 
+      ? `\n\nCRITICAL: The student has had ${studentMessageCount} exchanges (reached the maximum of ${MAX_ROUNDS} rounds). You MUST extract all three fields (setting, conflict, goal) NOW, even if some information is limited. Use "unknown" only if absolutely no information is available. You MUST output "done" at the end.`
+      : ''
+    
     const queryMessage = `You are analyzing a student's plot brainstorming conversation. The student has had ${studentMessageCount} exchanges with the AI.
 
-IMPORTANT: Only extract the fields that the student has discussed enough:
-${fieldsToExtract.map(field => `- ${field.charAt(0).toUpperCase() + field.slice(1)}: Only extract if student has discussed it in detail (at least 2-3 exchanges)`).join('\n')}
+IMPORTANT: Extract the following fields:
+${fieldsToExtract.map(field => `- ${field.charAt(0).toUpperCase() + field.slice(1)}: Extract if student has discussed it, otherwise use "unknown"`).join('\n')}
 
 Student's conversation:
 ${conversationText}
@@ -92,13 +107,15 @@ IMPORTANT:
 - Conflict and Goal MUST be short sentences (2-5 words), not single words
 - If student hasn't discussed enough, use "unknown"
 - Be generous - extract even if brief, but make it a phrase, not a single word
+${forceCompleteMessage}
 
 Format your response exactly as:
 setting: [setting or unknown]
 conflict: [short sentence or unknown]
 goal: [short sentence or unknown]
+done
 
-Only output "done" when you have extracted all requested fields (even if some are "unknown").`
+You MUST output "done" at the end when you have extracted all requested fields (even if some are "unknown").`
     
     const requestBody: any = {
       inputs: {
